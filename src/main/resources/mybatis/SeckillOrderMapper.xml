@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.seckill.repository.mapper.SeckillOrderMapper">
+
+    <select id="selectByOrderId" resultType="com.example.seckill.repository.entity.SeckillOrder">
+        SELECT id, order_id, goods_id, user_id, price, quantity,
+               total_amount, status, pay_timeout, close_time, create_time, update_time
+        FROM seckill_order
+        WHERE order_id = #{orderId}
+    </select>
+
+    <insert id="insert" parameterType="com.example.seckill.repository.entity.SeckillOrder">
+        INSERT INTO seckill_order (order_id, goods_id, user_id, price, quantity,
+                                   total_amount, status, pay_timeout, create_time, update_time)
+        VALUES (#{orderId}, #{goodsId}, #{userId}, #{price}, #{quantity},
+                #{totalAmount}, #{status}, #{payTimeout}, #{createTime}, #{updateTime})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE seckill_order SET status = #{status}, update_time = NOW()
+        WHERE order_id = #{orderId} AND status = 0
+    </update>
+
+    <update id="closeOrder">
+        UPDATE seckill_order SET status = #{status}, close_time = NOW(), update_time = NOW()
+        WHERE order_id = #{orderId} AND status = 0
+    </update>
+
+    <select id="selectTimeoutUnpaidOrders" resultType="com.example.seckill.repository.entity.SeckillOrder">
+        SELECT id, order_id, goods_id, user_id, price, quantity,
+               total_amount, status, pay_timeout, create_time, update_time
+        FROM seckill_order
+        WHERE status = 0
+        AND pay_timeout &lt; NOW()
+        LIMIT 1000
+    </select>
+
+</mapper>
