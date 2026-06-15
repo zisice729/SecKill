@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.seckill.mapper.SeckillMqFailLogMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.seckill.entity.SeckillMqFailLog">
+        <id column="id" property="id"/>
+        <result column="user_id" property="userId"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="msg_content" property="msgContent"/>
+        <result column="error_msg" property="errorMsg"/>
+        <result column="retry_count" property="retryCount"/>
+        <result column="handle_status" property="handleStatus"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.seckill.entity.SeckillMqFailLog">
+        INSERT INTO t_seckill_mq_fail_log (user_id, goods_id, msg_content, error_msg, retry_count, handle_status, create_time, update_time)
+        VALUES (#{userId}, #{goodsId}, #{msgContent}, #{errorMsg}, #{retryCount}, #{handleStatus}, NOW(), NOW())
+    </insert>
+
+    <select id="selectUnHandleLog" resultMap="BaseResultMap">
+        SELECT id, user_id, goods_id, msg_content, error_msg, retry_count, handle_status, create_time, update_time
+        FROM t_seckill_mq_fail_log
+        WHERE handle_status = 0 AND retry_count &lt; #{maxRetry}
+        ORDER BY create_time ASC
+        LIMIT 100
+    </select>
+
+    <update id="updateRetryCount">
+        UPDATE t_seckill_mq_fail_log
+        SET retry_count = #{retryCount}, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="markAsProcessed">
+        UPDATE t_seckill_mq_fail_log
+        SET handle_status = 1, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <update id="markAsManual">
+        UPDATE t_seckill_mq_fail_log
+        SET handle_status = 2, update_time = NOW()
+        WHERE id = #{id}
+    </update>
+
+</mapper>

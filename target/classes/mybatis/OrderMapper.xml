@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.example.seckill.mapper.OrderMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.seckill.entity.Order">
+        <id column="order_id" property="orderId"/>
+        <result column="user_id" property="userId"/>
+        <result column="goods_id" property="goodsId"/>
+        <result column="status" property="status"/>
+        <result column="pay_deadline" property="payDeadline"/>
+        <result column="pay_time" property="payTime"/>
+        <result column="close_time" property="closeTime"/>
+        <result column="out_pay_no" property="outPayNo"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <insert id="insert" parameterType="com.example.seckill.entity.Order">
+        INSERT INTO t_order (order_id, user_id, goods_id, status, pay_deadline, create_time, update_time)
+        VALUES (#{orderId}, #{userId}, #{goodsId}, #{status}, #{payDeadline}, NOW(), NOW())
+    </insert>
+
+    <select id="selectByOrderId" resultMap="BaseResultMap">
+        SELECT order_id, user_id, goods_id, status, pay_deadline, pay_time, close_time, out_pay_no, create_time, update_time
+        FROM t_order
+        WHERE order_id = #{orderId}
+    </select>
+
+    <select id="selectByUserAndGoods" resultMap="BaseResultMap">
+        SELECT order_id, user_id, goods_id, status, pay_deadline, pay_time, close_time, out_pay_no, create_time, update_time
+        FROM t_order
+        WHERE user_id = #{userId} AND goods_id = #{goodsId}
+    </select>
+
+    <update id="payOrder">
+        UPDATE t_order
+        SET status = 'PAYED', out_pay_no = #{outPayNo}, pay_time = NOW(), update_time = NOW()
+        WHERE order_id = #{orderId} AND status = #{expectedStatus}
+    </update>
+
+    <update id="closeOrder">
+        UPDATE t_order
+        SET status = 'CANCELED', close_time = NOW(), update_time = NOW()
+        WHERE order_id = #{orderId} AND status = #{expectedStatus}
+    </update>
+
+    <select id="selectTimeoutOrders" resultMap="BaseResultMap">
+        SELECT order_id, user_id, goods_id, status, pay_deadline, pay_time, close_time, out_pay_no, create_time, update_time
+        FROM t_order
+        WHERE status = 'UN_PAY' AND pay_deadline &lt; NOW()
+        LIMIT 1000
+    </select>
+
+</mapper>

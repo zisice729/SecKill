@@ -35,8 +35,7 @@ public class SeckillServiceImpl implements SeckillService {
     @PostConstruct
     public void initLua() {
         seckillLua = new DefaultRedisScript<>();
-        seckillLua.setScriptSource(new org.springframework.core.io.ResourceScriptSource(
-                new ClassPathResource("lua/seckill_stock.lua")));
+        seckillLua.setLocation(new ClassPathResource("lua/seckill_stock.lua"));
         seckillLua.setResultType(Long.class);
     }
 
