@@ -2,6 +2,9 @@ server:
   port: 8080
 
 spring:
+  application:
+    name: seckill-system
+
   datasource:
     url: jdbc:mysql://localhost:3306/seckill?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai
     username: root
@@ -24,28 +27,24 @@ spring:
       retries: 3
       acks: all
     consumer:
-      group-id: seckill-order-group
+      group-id: seckill-group
       auto-offset-reset: latest
 
 mybatis:
   mapper-locations: classpath:mybatis/*.xml
-  type-aliases-package: com.example.seckill.repository.entity
+  type-aliases-package: com.example.seckill.entity
 
 logging:
   level:
     com.example.seckill: DEBUG
     org.springframework.kafka: INFO
   pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId}] %-5level %logger{36} - %msg%n"
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 # 雪花算法配置
 snowflake:
   worker-id: 1
   datacenter-id: 1
-
-sentinel:
-  transport:
-    dashboard: localhost:8081
 
 # XXL-Job配置
 xxl:

@@ -1,48 +1,35 @@
 package com.example.seckill.controller;
 
-import com.example.seckill.common.response.Result;
-import com.example.seckill.service.PaymentCallbackService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import com.example.seckill.common.response.R;
+import com.example.seckill.dto.PayCallbackReq;
+import com.example.seckill.service.PayCallbackService;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import javax.annotation.Resource;
+import javax.validation.Valid;
 
-@Slf4j
+/**
+ * 支付回调控制器
+ */
 @RestController
-@RequestMapping("/api/payment")
+@RequestMapping("/payment")
 public class PaymentController {
 
-    @Resource
-    private PaymentCallbackService paymentCallbackService;
+    private final PayCallbackService payCallbackService;
+
+    public PaymentController(PayCallbackService payCallbackService) {
+        this.payCallbackService = payCallbackService;
+    }
 
     /**
      * 支付回调接口
+     * @param req 支付回调请求
+     * @return 响应结果
      */
     @PostMapping("/callback")
-    public Result<String> paymentCallback(@RequestParam String orderId) {
-        log.info("Received payment callback for order: {}", orderId);
-
-        try {
-            String result = paymentCallbackService.handlePaymentCallback(orderId);
-
-            switch (result) {
-                case "SUCCESS":
-                    return Result.success("支付成功");
-                case "ALREADY_PAID":
-                    return Result.success("订单已支付");
-                case "ORDER_CANCELLED":
-                    return Result.success("订单已取消，已退款");
-                case "ORDER_NOT_FOUND":
-                    return Result.success("订单不存在，已退款");
-                case "STATUS_CHANGED":
-                    return Result.success("订单状态已变更，已退款");
-                default:
-                    return Result.error("未知状态");
-            }
-
-        } catch (Exception e) {
-            log.error("Payment callback failed for order {}: {}", orderId, e.getMessage(), e);
-            return Result.error("支付回调处理失败");
-        }
+    public R payCallback(@Valid @RequestBody PayCallbackReq req) {
+        return payCallbackService.payCallback(req);
     }
 }

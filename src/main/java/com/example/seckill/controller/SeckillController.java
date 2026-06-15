@@ -1,26 +1,35 @@
 package com.example.seckill.controller;
 
-import com.example.seckill.common.response.Result;
-import com.example.seckill.controller.request.SeckillRequest;
-import com.example.seckill.controller.response.SeckillResponse;
+import com.example.seckill.common.response.R;
+import com.example.seckill.dto.SeckillReq;
 import com.example.seckill.service.SeckillService;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import javax.annotation.Resource;
 import javax.validation.Valid;
 
-@Slf4j
+/**
+ * 秒杀控制器
+ */
 @RestController
-@RequestMapping("/api/seckill")
+@RequestMapping("/seckill")
 public class SeckillController {
 
-    @Resource
-    private SeckillService seckillService;
+    private final SeckillService seckillService;
 
-    @PostMapping("/order")
-    public Result<SeckillResponse> seckill(@Valid @RequestBody SeckillRequest request) {
-        SeckillResponse response = seckillService.doSeckill(request);
-        return Result.success(response);
+    public SeckillController(SeckillService seckillService) {
+        this.seckillService = seckillService;
+    }
+
+    /**
+     * 秒杀下单接口
+     * @param req 秒杀请求
+     * @return 响应结果
+     */
+    @PostMapping("/do")
+    public R seckill(@Valid @RequestBody SeckillReq req) {
+        return seckillService.doSeckill(req.getUserId(), req.getGoodsId());
     }
 }

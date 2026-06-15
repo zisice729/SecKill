@@ -1,73 +1,68 @@
 package com.example.seckill.service.impl;
 
-import com.example.seckill.common.exception.BusinessException;
-import com.example.seckill.common.util.SnowflakeIdGenerator;
-import com.example.seckill.controller.request.SeckillRequest;
-import com.example.seckill.controller.response.SeckillResponse;
-import com.example.seckill.mq.msg.SeckillOrderMsg;
-import com.example.seckill.mq.producer.KafkaProducer;
-import com.example.seckill.repository.RedisRepository;
-import com.example.seckill.repository.entity.SeckillGoods;
-import com.example.seckill.repository.mapper.SeckillGoodsMapper;
+import com.example.seckill.common.response.R;
+import com.example.seckill.constant.RedisKeyConstant;
+import com.example.seckill.dto.KafkaMsgDTO;
 import com.example.seckill.service.SeckillService;
-import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.script.DefaultRedisScript;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
-import org.springframework.util.ObjectUtils;
 
-import javax.annotation.Resource;
-import java.math.BigDecimal;
+import javax.annotation.PostConstruct;
+import java.util.Arrays;
 
-@Slf4j
+/**
+ * 秒杀服务实现类
+ */
 @Service
 public class SeckillServiceImpl implements SeckillService {
 
-    @Resource
-    private RedisRepository redisRepository;
+    private final RedisTemplate<String, String> redisTemplate;
+    private final KafkaTemplate<String, KafkaMsgDTO> kafkaTemplate;
+    private DefaultRedisScript<Long> seckillLua;
 
-    @Resource
-    private SeckillGoodsMapper goodsMapper;
-
-    @Resource
-    private KafkaProducer kafkaProducer;
-
-    @Resource
-    private SnowflakeIdGenerator snowflakeIdGenerator;
-
-    @Override
-    public SeckillResponse doSeckill(SeckillRequest request) {
-        SeckillGoods goods = goodsMapper.selectByPrimaryKey(request.getGoodsId());
-        if (ObjectUtils.isEmpty(goods)) {
-            throw new BusinessException("商品不存在");
-        }
-
-        boolean success = redisRepository.doSeckill(request.getGoodsId(), request.getUserId());
-        if (!success) {
-            throw new BusinessException("库存不足或已抢购");
-        }
-
-        String orderId = String.valueOf(snowflakeIdGenerator.nextId());
-        String traceId = String.valueOf(snowflakeIdGenerator.nextId());
-
-        sendSeckillOrderMsg(orderId, traceId, request.getGoodsId(), request.getUserId(), goods.getSeckillPrice());
-
-        SeckillResponse response = new SeckillResponse();
-        response.setOrderId(orderId);
-        response.setTraceId(traceId);
-        return response;
+    public SeckillServiceImpl(RedisTemplate<String, String> redisTemplate,
+                              KafkaTemplate<String, KafkaMsgDTO> kafkaTemplate) {
+        this.redisTemplate = redisTemplate;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     /**
-     * 发送秒杀订单MQ消息
+     * 初始化Lua脚本
      */
-    private void sendSeckillOrderMsg(String orderId, String traceId, Long goodsId, Long userId, BigDecimal seckillPrice) {
-        SeckillOrderMsg msg = new SeckillOrderMsg();
-        msg.setOrderId(orderId);
-        msg.setGoodsId(goodsId);
+    @PostConstruct
+    public void initLua() {
+        seckillLua = new DefaultRedisScript<>();
+        seckillLua.setScriptSource(new org.springframework.core.io.ResourceScriptSource(
+                new ClassPathResource("lua/seckill_stock.lua")));
+        seckillLua.setResultType(Long.class);
+    }
+
+    @Override
+    public R doSeckill(Long userId, Long goodsId) {
+        String stockKey = String.format(RedisKeyConstant.SECKILL_STOCK, goodsId);
+        String userSetKey = String.format(RedisKeyConstant.SECKILL_USER_SET, goodsId);
+
+        // 执行Lua脚本：预扣库存 + 用户限购检查
+        Long result = redisTemplate.execute(seckillLua,
+                Arrays.asList(stockKey, userSetKey),
+                userId.toString());
+
+        if (result == 0) {
+            return R.fail("每人仅限秒杀一单");
+        }
+        if (result == -1) {
+            return R.fail("商品库存不足");
+        }
+
+        // 发送Kafka消息：仅传 userId、goodsId
+        KafkaMsgDTO msg = new KafkaMsgDTO();
         msg.setUserId(userId);
-        msg.setSeckillPrice(seckillPrice);
-        msg.setQuantity(1);
-        msg.setCreateTime(System.currentTimeMillis());
-        msg.setTraceId(traceId);
-        kafkaProducer.sendOrderMsg(msg);
+        msg.setGoodsId(goodsId);
+        kafkaTemplate.send("seckill_topic", msg);
+
+        return R.success("下单已受理，请15分钟内完成支付");
     }
 }
